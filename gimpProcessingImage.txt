@@ -1,0 +1,19 @@
+In order to set up an image you need to scale the image down
+You want to choose a scale that is reasonable for the number of people and pictures that will be taken
+
+Scale the image 
+right click image -> Scale Image... -> Set the number of pixels you want in the rows/columns make sure aspect ratio is maintained
+
+Once image is scaled, save this as your reference for the colors
+
+Then apply a color threshold such that the really white images are ignored from selection
+
+colors->Threshold
+
+Set the range for the threshold (0-~240 seemed decent for removing most of the whites)
+
+and set the channel to RGB
+
+You may need to edit  afew of the pixels by hand
+
+We will use the white pixels as our reference for which colors to hue shift the images from the 
