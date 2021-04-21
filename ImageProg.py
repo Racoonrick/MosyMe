@@ -3,7 +3,7 @@ import os
 import time
 import math
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from PIL import ImageFont, ImageDraw
 import colorsys
 
@@ -119,9 +119,9 @@ class ImageProg():
 		t0=time.time()
 		imref = Image.open('gimpParis.jpg')
 		#Open the mask as the filter
-		immask = Image.open('gimpParisThreshold.jpg')
+		immask = Image.open('gimpParisThreshold.png')
 		cdata = np.array(imref.convert(mode="RGB"))
-		sourceImage = 'refpic.jpeg'
+		sourceImage = 'Reference450x450White.png'
 		#Color corrected data averaged for each
 		cCorrectData = np.array(imref.convert(mode="RGB"))
 		yref,xref,zref = cdata.shape
@@ -132,26 +132,39 @@ class ImageProg():
 		maxCorrectData = np.max(np.abs(cCorrectData-127.5),axis=2)
 		maxCorrectData = 127.5 - maxCorrectData
 		print(yref,xref,zref)
-
-		imsource = Image.open(sourceImage)
+		print(cCorrectData[1,1])
+		imsource = Image.open(sourceImage).convert('RGB')
 		xrefsize,yrefsize = imsource.size
 		#converts image to floating point
 		sdata = np.array(imsource.convert(mode="RGB"))
 		print(sdata.shape)
 		yoffset = 0
 		xoffset = 0
+		font = ImageFont.truetype("/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf", 35)
 		imagecorrected = np.zeros((yrefsize*(yref-yoffset),xrefsize*(xref-xoffset),3),dtype=np.uint8)
+		countcolor,counttotal,photoCoordinates=self.countWhitePixels('gimpParisThreshold.png')
 		print(imagecorrected.shape)
+		photocount=0
 		for y in range(0,(yref-yoffset)): 
 			print(y)
 			for x in range(0,(xref-xoffset)):
 				#print(x,y)
 				#imagecorrected[(y)*yrefsize:(y+1)*yrefsize,(x)*xrefsize:(1+x)*xrefsize,:] = ImageColorCorrect(sourceImage,cCorrectData[y,x],maxCorrectData[y,x])
-				imagecorrected[(y)*yrefsize:(y+1)*yrefsize,(x)*xrefsize:(1+x)*xrefsize,:] = self.ImageBlend(imsource,cCorrectData[y,x])
+				strx=str(x)
+				stry=str(y)
+				strcoord='c'+strx+'r'+stry
+				correctedphoto=self.NewImageBlend(imsource,cCorrectData[y,x],'RGB')
+				if [x,y]==photoCoordinates[photocount]:
+					draw=ImageDraw.Draw(correctedphoto)
+					draw.text((315, 375),strcoord,(0,0,0),font=font)
+					photocount=photocount+1
+				imagecorrected[(y)*yrefsize:(y+1)*yrefsize,(x)*xrefsize:(1+x)*xrefsize,:] = correctedphoto
+
+
 		imOut = Image.fromarray(imagecorrected.astype('uint8'),'RGB')
-		imOut.save("collage.jpg")
+		imOut.save("collage.bmp")
 		
-		imOut.show()
+		#imOut.show()
 
 		#imOut.close()
 		t1 = time.time()
@@ -176,9 +189,9 @@ class ImageProg():
 		output = np.array(Image.blend(ImageSource, layer, 0.75))
 		return output
 
-	def NewImageBlend(self,ImageSource,cCorrectData):
+	def NewImageBlend(self,ImageSource,cCorrectData,cFormat):
 		size = ImageSource.size
-		layer = Image.new('RGB', size, (cCorrectData[0],cCorrectData[1],cCorrectData[2])) # "hue" selection is done by choosing a color...
+		layer = Image.new(cFormat, size, (cCorrectData[0],cCorrectData[1],cCorrectData[2]))
 		output = Image.blend(ImageSource, layer, 0.75)
 		return output
 
@@ -258,10 +271,12 @@ class ImageProg():
 		photoCoordinates=[]
 		im = Image.open(thresholdPhotoPath)
 		width,height = im.size
+		print('width hiegh ref')
+		print(width,height)
 		imc = im.convert(mode="RGB")
 		data = np.array(imc)
-		for x in range(0,width):
-			for y in range(0,height):
+		for y in range(0,height):
+			for x in range(0,width):
 				counttotal=counttotal+1
 				avgcolor = np.average(data[y,x,0:3])
 				if avgcolor>200:
@@ -281,18 +296,22 @@ class ImageProg():
 		im1=im.crop((left,0,right,height))
 		return im1
 
-	def imageOverlay(self,mainpath,borderpath,colorcorrectdata,coord):
+	def imageOverlay(self,mainpath,borderpath,colorcorrectdata,coord,cFormat):
 		mainphoto = Image.open(mainpath)
 		borderphoto = Image.open(borderpath)
 		#Sets correct color information
 		colors=colorcorrectdata[coord[1],coord[0]]
 		#Creates White background image
 		background = Image.new('RGBA', (2732, 1868), (255, 255, 255, 255))
+		backgroundCorrected = Image.new('RGBA', (2732, 2732), (255, 255, 255, 255))
 		# Pastes mainphoto on white background
 		background.paste(mainphoto,(70,70))
+		backgroundCorrected.paste(mainphoto,(70,2723-int(1868*1.25)+70))
 		# Overlays borderphoto on top of the mainphoto
 		#compositephoto=Image.alpha_composite(background,borderphoto)
 		compositephoto=background
+		compositephotoBackground=backgroundCorrected
+		#compositephotoBackground.show()
 		# Resizes the photo maintaining aspect ratio but fitting
 		# within 600 pixels wide
 		width,height = compositephoto.size
@@ -301,18 +320,20 @@ class ImageProg():
 		# Generates color corrected image for board
 		# This requires coord to be given as an array
 		# 	with 3 rows of data
-		correctedphoto=self.NewImageBlend(mainphoto,colors)
+		#correctedphoto=self.NewImageBlend(mainphoto,colors)
+		correctedphoto=self.NewImageBlend(compositephotoBackground,colors,cFormat)
 		# Crops image to a square
 		correctedphoto=self.imageCrop(correctedphoto)
+		correctedphoto=ImageOps.expand(correctedphoto,border=10,fill=(235, 235, 235))
 		# Resizes corrected image
-		correctedphoto=correctedphoto.resize((560,560))
+		correctedphoto=correctedphoto.resize((450,450))
 		# Generates and places text over image
 		strx=str(coord[0])
 		stry=str(coord[1])
 		strcoord='c'+strx+'r'+stry
 		font = ImageFont.truetype("/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf", 35)
 		draw=ImageDraw.Draw(correctedphoto)
-		draw.text((420, 500),strcoord,(255,255,255),font=font)
+		draw.text((315, 375),strcoord,(187,187,187),font=font)
 
 		return compositephoto, correctedphoto
 		
@@ -320,10 +341,10 @@ class ImageProg():
 	def MakePrint(self,photos,border,colorcorrectdata,coord):
 		# Loads main photo and places border over top
 		# Returns the composite and the original photo
-		imageborder=Image.open('/home/ricky/Desktop/PhotoBooth/ImagesGUI/JCbday2.png')
-		composite1,corrected1=self.imageOverlay(photos[0],border,colorcorrectdata,coord[0])
-		composite2,corrected2=self.imageOverlay(photos[1],border,colorcorrectdata,coord[1])
-		composite3,corrected3=self.imageOverlay(photos[2],border,colorcorrectdata,coord[2])
+		imageborder=Image.open('/home/ricky/Desktop/PhotoBooth/ImagesGUI/WeddingBorderLarge.png')
+		composite1,corrected1=self.imageOverlay(photos[0],border,colorcorrectdata,coord[0],'RGBA')
+		composite2,corrected2=self.imageOverlay(photos[1],border,colorcorrectdata,coord[1],'RGBA')
+		composite3,corrected3=self.imageOverlay(photos[2],border,colorcorrectdata,coord[2],'RGBA')
 		# Generates white background strip for print photo
 		print(composite1.size)
 		backgroundstrip=Image.new('RGBA',(1200,1800),(255,255,255,255))
@@ -331,13 +352,13 @@ class ImageProg():
 		backgroundstrip.paste(composite1,(0,65))
 		backgroundstrip.paste(composite2,(0,505))
 		backgroundstrip.paste(composite3,(0,970))
-		# backgroundstrip.paste(corrected1,(620,30))
-		# backgroundstrip.paste(corrected2,(620,620))
-		# backgroundstrip.paste(corrected3,(620,1210))
+		backgroundstrip.paste(corrected1,(750,0))
+		backgroundstrip.paste(corrected2,(750,450))
+		backgroundstrip.paste(corrected3,(750,900))
 		#Added for JCs bday
-		backgroundstrip.paste(composite1,(600,65))
-		backgroundstrip.paste(composite2,(600,505))
-		backgroundstrip.paste(composite3,(600,970))
+		#backgroundstrip.paste(composite1,(600,65))
+		#backgroundstrip.paste(composite2,(600,505))
+		#backgroundstrip.paste(composite3,(600,970))
 		backgroundstripf=Image.alpha_composite(backgroundstrip,imageborder)
 		#backgroundstrip.paste(imageborder,(0,0))
 		#backgroundstrip.paste(imageborder,(600,0))
@@ -347,14 +368,19 @@ class ImageProg():
 if __name__ == '__main__':
 	test=ImageProg()
 	#print(test.countWhitePixels())
-	#test.CollageGen()
+	test.CollageGen()
 	#test.imageCrop()
-	countcolor,counttotal,photoCoordinates=test.countWhitePixels('gimpParisThreshold.jpg')
+	countcolor,counttotal,photoCoordinates=test.countWhitePixels('gimpParisThreshold.png')
 	imref = Image.open('gimpParis.jpg')
 	cdata = np.array(imref.convert(mode="RGB"))
 	photos=["../PhotoBooth/imFromCam/cam0001.jpg",
 			"../PhotoBooth/imFromCam/cam0002.jpg",
 			"../PhotoBooth/imFromCam/cam0003.jpg"]
 	borderpath="../PhotoBooth/ImagesGUI/ImageBorderBasic.png"
-	photoout=test.MakePrint(photos,borderpath,cdata,photoCoordinates[355:358])
+	photoout=test.MakePrint(photos,borderpath,cdata,photoCoordinates[155:158])
+	print(photoCoordinates[155:158])
 	photoout.save('PrintPhoto.png')
+	photoout.show()
+	#whitephoto = Image.new('RGBA', (450, 450), (255, 255, 255, 255))
+	#whitephoto.save('Reference450x450White.png')
+
