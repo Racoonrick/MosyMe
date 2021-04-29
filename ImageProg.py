@@ -333,54 +333,75 @@ class ImageProg():
 		strcoord='c'+strx+'r'+stry
 		font = ImageFont.truetype("/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf", 35)
 		draw=ImageDraw.Draw(correctedphoto)
-		draw.text((315, 375),strcoord,(187,187,187),font=font)
-
+		draw.text((315-1, 375),strcoord,(120,120,120),font=font)
+		draw.text((315+1, 375),strcoord,(120,120,120),font=font)
+		draw.text((315, 375-1),strcoord,(120,120,120),font=font)
+		draw.text((315, 375+1),strcoord,(120,120,120),font=font)
+		draw.text((315, 375),strcoord,(195,195,195),font=font)
 		return compositephoto, correctedphoto
 		
 
 	def MakePrint(self,photos,border,colorcorrectdata,coord):
 		# Loads main photo and places border over top
 		# Returns the composite and the original photo
-		imageborder=Image.open('/home/ricky/Desktop/PhotoBooth/ImagesGUI/WeddingBorderLarge.png')
+		doubleImageborder=Image.open('/home/ricky/Desktop/PhotoBooth/ImagesGUI/DoubleWeddingBorderAdjust.png')
+		imageborder=Image.open('/home/ricky/Desktop/PhotoBooth/ImagesGUI/WeddingBorderLargeAdjust.png')
 		composite1,corrected1=self.imageOverlay(photos[0],border,colorcorrectdata,coord[0],'RGBA')
 		composite2,corrected2=self.imageOverlay(photos[1],border,colorcorrectdata,coord[1],'RGBA')
 		composite3,corrected3=self.imageOverlay(photos[2],border,colorcorrectdata,coord[2],'RGBA')
 		# Generates white background strip for print photo
 		print(composite1.size)
 		backgroundstrip=Image.new('RGBA',(1200,1800),(255,255,255,255))
+		backgroundstrip_normal=Image.new('RGBA',(1200,1800),(255,255,255,255))
 		# Places the resized and corrected photos onto strip
 		backgroundstrip.paste(composite1,(0,65))
 		backgroundstrip.paste(composite2,(0,505))
 		backgroundstrip.paste(composite3,(0,970))
+
 		backgroundstrip.paste(corrected1,(750,0))
 		backgroundstrip.paste(corrected2,(750,450))
 		backgroundstrip.paste(corrected3,(750,900))
+
+		backgroundstrip_normal.paste(composite1,(0,65))
+		backgroundstrip_normal.paste(composite2,(0,505))
+		backgroundstrip_normal.paste(composite3,(0,970))
+		backgroundstrip_normal.paste(composite1,(600,65))
+		backgroundstrip_normal.paste(composite2,(600,505))
+		backgroundstrip_normal.paste(composite3,(600,970))
 		#Added for JCs bday
 		#backgroundstrip.paste(composite1,(600,65))
 		#backgroundstrip.paste(composite2,(600,505))
 		#backgroundstrip.paste(composite3,(600,970))
 		backgroundstripf=Image.alpha_composite(backgroundstrip,imageborder)
+		backgroundstrip_normalf=Image.alpha_composite(backgroundstrip_normal,doubleImageborder)
+
 		#backgroundstrip.paste(imageborder,(0,0))
 		#backgroundstrip.paste(imageborder,(600,0))
-		return backgroundstripf
+		return backgroundstripf, backgroundstrip_normalf
 
 
 if __name__ == '__main__':
 	test=ImageProg()
 	#print(test.countWhitePixels())
-	test.CollageGen()
+	#test.CollageGen()
 	#test.imageCrop()
 	countcolor,counttotal,photoCoordinates=test.countWhitePixels('gimpParisThreshold.png')
+	print(countcolor)
+	print(photoCoordinates[513])
+	print("hi")
 	imref = Image.open('gimpParis.jpg')
 	cdata = np.array(imref.convert(mode="RGB"))
 	photos=["../PhotoBooth/imFromCam/cam0001.jpg",
 			"../PhotoBooth/imFromCam/cam0002.jpg",
 			"../PhotoBooth/imFromCam/cam0003.jpg"]
 	borderpath="../PhotoBooth/ImagesGUI/ImageBorderBasic.png"
-	photoout=test.MakePrint(photos,borderpath,cdata,photoCoordinates[155:158])
+	photoout,doublephotoout=test.MakePrint(photos,borderpath,cdata,photoCoordinates[155:158])
 	print(photoCoordinates[155:158])
 	photoout.save('PrintPhoto.png')
 	photoout.show()
 	#whitephoto = Image.new('RGBA', (450, 450), (255, 255, 255, 255))
 	#whitephoto.save('Reference450x450White.png')
 
+	RandSequence=[203,457,313,308,285,163,301,78,384,391,426,488,479,316,273,502,356,249,147,100,252,101,155,95,263,158,314,342,242,217,114,450,138,278,7,292,112,202,452,225,41,421,373,125,64,180,486,480,174,139,193,161,317,398,58,416,345,473,83,140,387,0,96,192,366,344,380,494,26,195,29,219,108,67,388,338,424,501,471,2,45,201,118,368,81,504,432,363,38,197,177,275,73,511,40,208,442,451,235,505,121,355,433,126,209,74,3,104,115,483,340,77,394,206,218,184,22,324,191,17,256,339,137,254,170,240,228,247,236,350,128,315,85,383,5,420,63,409,379,21,229,231,50,178,272,42,304,52,258,507,260,261,327,131,493,93,299,378,145,294,171,25,136,24,262,196,475,72,152,295,381,210,151,358,76,445,334,422,371,71,244,30,336,146,481,331,389,87,8,310,185,436,302,111,382,182,509,374,44,425,289,346,396,303,28,264,70,187,199,513,246,167,361,353,12,35,220,176,99,286,319,288,321,306,375,325,392,37,204,284,298,215,194,438,79,401,90,265,269,469,224,376,446,453,335,200,237,403,305,142,105,476,14,117,19,437,466,427,449,468,234,110,175,407,102,359,123,213,150,127,283,365,402,205,311,53,250,369,89,341,68,18,39,444,181,280,233,124,490,120,1,467,80,364,397,133,32,399,462,482,232,27,377,216,135,166,412,414,62,277,119,122,423,47,109,404,312,255,164,330,49,266,116,94,91,309,239,456,390,103,430,413,465,274,429,367,411,259,415,56,66,188,107,251,162,458,48,297,320,406,337,132,186,349,33,410,454,238,241,443,156,496,472,408,15,512,227,9,141,296,328,357,400,455,500,4,230,362,474,169,149,393,222,508,61,11,267,326,13,46,173,287,189,211,332,435,159,223,282,144,154,23,484,183,86,323,459,55,419,51,59,226,36,130,16,20,499,69,348,485,372,291,129,293,329,405,60,360,431,498,212,257,143,461,307,463,160,82,351,440,300,478,279,271,10,98,370,179,428,354,491,276,347,153,221,439,214,84,460,447,190,34,477,134,148,290,352,448,318,113,248,6,497,270,207,54,510,395,418,487,106,268,441,165,495,322,489,97,172,386,88,434,506,503,198,43,245,385,492,343,281,464,92,168,75,243,157,333,417,470,57,31,65,253]
+	print(max(RandSequence))
+	print(photoCoordinates)
